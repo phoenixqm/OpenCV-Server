@@ -87,9 +87,10 @@ namespace SimpleWeb {
             
             std::string remote_endpoint_address;
             unsigned short remote_endpoint_port;
-            
+
+            Request() : content(streambuf) {}
+
         private:
-            Request(): content(streambuf) {}
             
             boost::asio::streambuf streambuf;
         };

@@ -41,11 +41,13 @@ namespace SimpleWeb {
             std::istream content;
 
             std::unordered_multimap<std::string, std::string, ihash, iequal_to> header;
-            
+
+            Response() : content(&content_buffer) {}
+
         private:
             boost::asio::streambuf content_buffer;
             
-            Response(): content(&content_buffer) {}
+
         };
         
         std::shared_ptr<Response> request(const std::string& request_type, const std::string& path="/", boost::string_ref content="",
