@@ -4,9 +4,60 @@
 
 #include<fstream>
 #include<iostream>
+#include<vector>
+#include<cmath>
 
 using namespace cv;
 using namespace std;
+
+
+int levels = 3;
+
+vector<vector<Point> > contours;
+vector<Vec4i> hierarchy;
+
+static void on_trackbar(int, void*)
+{
+	Mat cnt_img = Mat::zeros(1082, 1922, CV_8UC3);
+	int _levels = levels - 3;
+	drawContours(cnt_img, contours, _levels <= 0 ? 3 : -1, Scalar(128, 255, 255),
+		3, CV_AA, hierarchy, std::abs(_levels));
+
+
+	imwrite("web/contour-img.jpg", cnt_img);
+
+	imshow("contours", cnt_img);
+}
+
+int test_findContours(int argc, char**)
+{
+	Mat img = imread("web/maskout.jpg", 1);
+
+	Mat gray_image;
+	cvtColor(img, gray_image, CV_BGR2GRAY);
+
+	//show the faces
+	namedWindow("image", 1);
+	imshow("image", gray_image);
+
+	//Extract the contours so that
+	vector<vector<Point> > contours0;
+	findContours(gray_image, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	contours.resize(contours0.size());
+	for (size_t k = 0; k < contours0.size(); k++)
+		approxPolyDP(Mat(contours0[k]), contours[k], 3, true);
+
+	namedWindow("contours", 1);
+	createTrackbar("levels+3", "contours", &levels, 7, on_trackbar);
+
+	on_trackbar(0, 0);
+	waitKey();
+
+	return 0;
+}
+
+
 
 void FloodFillSolution::help()
 {
@@ -68,11 +119,30 @@ void FloodFillSolution::onMouse(int event, int x, int y, int, void* me)
 
 
 void FloodFillSolution::initOpenCVImage(char* filename) {
+
+	//test_findContours(0, 0);
+
+	ffillMode = 1;
+	loDiff = 20, upDiff = 20;
+	connectivity = 4;
+	isColor = true;
+	useMask = false;
+	showWindow = false;
+	newMaskVal = 255;
+
+	levels = 3;
+
+
 	image0 = imread(filename, 1);
+
+
+	width = image0.size().width;
+	height = image0.size().height;
+
 
 	if (image0.empty())
 	{
-		cout << "Image empty. Usage: ffilldemo <image_name>\n";
+		cout << "Error: Image empty\n";
 		return;
 	}
 
@@ -80,6 +150,7 @@ void FloodFillSolution::initOpenCVImage(char* filename) {
 	cvtColor(image0, gray, COLOR_BGR2GRAY);
 	mask.create(image0.rows + 2, image0.cols + 2, CV_8UC1);
 
+	//initOpenCVWindow();
 
 	return;
 }
@@ -154,7 +225,7 @@ void FloodFillSolution::initOpenCVWindow() {
 			ffillMode = 1;
 			break;
 		case 'g':
-			cout << "Gradient (floating range) floodfill mode is set\n";
+			cout << "Floating range mode is set\n";
 			ffillMode = 2;
 			break;
 		case '4':
@@ -212,8 +283,36 @@ string FloodFillSolution::getContoursFromPoint(int x, int y) {
 		imshow("mask", mask);
 	}
 	int area = floodFillFromPoint(x, y);
+	
+	imwrite("web/maskout.jpg", mask);
 
+
+	imencode(".jpg", mask, buf, params);
+
+	//Mat img = imread("web/maskout.jpg", 1);
+
+	Mat img = imdecode(buf, 1);
+
+	Mat gray_image;
+	cvtColor(img, gray_image, CV_BGR2GRAY);
+
+	vector<vector<Point> > contours0;
+	findContours(gray_image, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	contours.resize(contours0.size());
+	for (size_t k = 0; k < contours0.size(); k++)
+		approxPolyDP(Mat(contours0[k]), contours[k], 3, true);
+
+	Mat cnt_img = Mat::zeros(height+2, width+2, CV_8UC3);
+
+
+	int _levels = levels - 3;
+	drawContours(cnt_img, contours, _levels <= 0 ? 3 : -1, Scalar(128, 255, 255),
+		3, CV_AA, hierarchy, std::abs(_levels));
+	
+	imwrite("web/contourout.jpg", cnt_img);
 
 	cout << area << " pixels were repainted\n";
 	return std::to_string(area) + " pixels were repainted\n";
+
 }
