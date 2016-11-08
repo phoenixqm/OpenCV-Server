@@ -11,53 +11,6 @@ using namespace cv;
 using namespace std;
 
 
-int levels = 3;
-
-vector<vector<Point> > contours;
-vector<Vec4i> hierarchy;
-
-static void on_trackbar(int, void*)
-{
-	Mat cnt_img = Mat::zeros(1082, 1922, CV_8UC3);
-	int _levels = levels - 3;
-	drawContours(cnt_img, contours, _levels <= 0 ? 3 : -1, Scalar(128, 255, 255),
-		3, CV_AA, hierarchy, std::abs(_levels));
-
-
-	imwrite("web/contour-img.jpg", cnt_img);
-
-	imshow("contours", cnt_img);
-}
-
-int test_findContours(int argc, char**)
-{
-	Mat img = imread("web/maskout.jpg", 1);
-
-	Mat gray_image;
-	cvtColor(img, gray_image, CV_BGR2GRAY);
-
-	//show the faces
-	namedWindow("image", 1);
-	imshow("image", gray_image);
-
-	//Extract the contours so that
-	vector<vector<Point> > contours0;
-	findContours(gray_image, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-
-	contours.resize(contours0.size());
-	for (size_t k = 0; k < contours0.size(); k++)
-		approxPolyDP(Mat(contours0[k]), contours[k], 3, true);
-
-	namedWindow("contours", 1);
-	createTrackbar("levels+3", "contours", &levels, 7, on_trackbar);
-
-	on_trackbar(0, 0);
-	waitKey();
-
-	return 0;
-}
-
-
 
 void FloodFillSolution::help()
 {
@@ -120,8 +73,7 @@ void FloodFillSolution::onMouse(int event, int x, int y, int, void* me)
 
 void FloodFillSolution::initOpenCVImage(char* filename) {
 
-	//test_findContours(0, 0);
-
+	
 	ffillMode = 1;
 	loDiff = 20, upDiff = 20;
 	connectivity = 4;
@@ -273,6 +225,23 @@ int FloodFillSolution::floodFillFromPoint(int x, int y) {
 	return area;
 }
 
+// ref http://stackoverflow.com/questions/1716274/fill-the-holes-in-opencv
+
+void fillEdgeImage(cv::Mat edgesIn, cv::Mat& filledEdgesOut)
+{
+	cv::Mat edgesNeg = edgesIn.clone();
+
+	// fill point can not from (0,0), its buggy
+	cv::floodFill(edgesNeg, cv::Point(1, 100), CV_RGB(255, 255, 255));
+	//imwrite("web/neg.jpg", edgesNeg);
+	bitwise_not(edgesNeg, edgesNeg);
+	//imwrite("web/not.jpg", edgesNeg);
+	filledEdgesOut = (edgesNeg | edgesIn);
+	//imwrite("web/or.jpg", filledEdgesOut);
+
+	return;
+}
+
 string FloodFillSolution::getContoursFromPoint(int x, int y) {
 
 	useMask = true;
@@ -283,7 +252,27 @@ string FloodFillSolution::getContoursFromPoint(int x, int y) {
 		imshow("mask", mask);
 	}
 	int area = floodFillFromPoint(x, y);
-	
+	if (area > 60000) {
+		return "none";
+	}
+	fillEdgeImage(mask, mask);
+
+
+	//int dilation_type = MORPH_RECT;
+	//// int dilation_type = MORPH_CROSS;
+	//// int dilation_type = MORPH_ELLIPSE;
+
+	//int dilation_size = 2;
+
+	//Mat element = getStructuringElement(dilation_type,
+	//	Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+	//	Point(dilation_size, dilation_size));
+	///// Apply the dilation operation
+	//dilate(mask, mask, element);
+	////dilate(mask, mask, element);
+	//medianBlur(mask, mask, 5);
+	////erode(mask, mask, element);
+
 	imwrite("web/maskout.jpg", mask);
 
 
@@ -295,24 +284,78 @@ string FloodFillSolution::getContoursFromPoint(int x, int y) {
 
 	Mat gray_image;
 	cvtColor(img, gray_image, CV_BGR2GRAY);
-
+	
 	vector<vector<Point> > contours0;
 	findContours(gray_image, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	//findContours(gray_image, contours0, hierarchy, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
 	contours.resize(contours0.size());
 	for (size_t k = 0; k < contours0.size(); k++)
 		approxPolyDP(Mat(contours0[k]), contours[k], 3, true);
 
-	Mat cnt_img = Mat::zeros(height+2, width+2, CV_8UC3);
+	int largestIndex = 0;
+	int largestLength = 0;
+	for (int i = 0; i < contours.size(); i++) {
+		if (contours[i].size() <= 4) {
+			continue;
+		}
+		if (contours[i][0].x < 50 || contours[i][0].y < 50) {
+			continue;
+		}
+		if (contours[i].size() > largestLength) {
+			largestLength = contours[i].size();
+			largestIndex = i;
+		}
+	}
+	vector<vector<Point> > thecontour;
+	thecontour.push_back(contours[largestIndex]);
+
+	Mat cnt_img = Mat::zeros(height + 2, width + 2, CV_8UC3);
 
 
-	int _levels = levels - 3;
-	drawContours(cnt_img, contours, _levels <= 0 ? 3 : -1, Scalar(128, 255, 255),
-		3, CV_AA, hierarchy, std::abs(_levels));
-	
+	polylines(cnt_img, contours[largestIndex], true, Scalar(128, 255, 255), 3);
+
+
+
 	imwrite("web/contourout.jpg", cnt_img);
 
+	//// stringfy all contours
+	//string data = "[";
+
+	//for (int i = 0; i < contours.size(); i++) {
+	//	data += "[";
+	//	for (int j = 0; j < contours[i].size(); j++) {
+	//		data += to_string(contours[i][j].x);
+	//		data += ", ";
+	//		data += to_string(contours[i][j].y);
+	//		if (j < contours[i].size() - 1) {
+	//			data += ", ";
+	//		}
+
+	//	}
+	//	data += "]";
+	//	if (i < contours.size() - 1) {
+	//		data += ", \n";
+	//	}
+	//}
+	//data += "]";
+
+
+	// stringfy only the largest contour
+	string data = "[";	
+	for (int j = 0; j < contours[largestIndex].size(); j++) {
+		data += to_string(contours[largestIndex][j].x);
+		data += ", ";
+		data += to_string(contours[largestIndex][j].y);
+		if (j < contours[largestIndex].size() - 1) {
+			data += ", ";
+		}
+	}
+	data += "]";
+
 	cout << area << " pixels were repainted\n";
-	return std::to_string(area) + " pixels were repainted\n";
+	cout << contours.size() << " contours were detected\n";
+	cout << "largest contour is " << data << endl;
+	return data;
 
 }
