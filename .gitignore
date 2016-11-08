@@ -17,3 +17,5 @@ io_test
 parse_test
 
 build/*
+!build/CMakeCache.txt
+!build/http_opencv.vcxproj
