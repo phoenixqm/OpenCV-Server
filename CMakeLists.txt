@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8.8)
-project (Simple-Web-Server)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
+project (OpenCV-Server)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 
 include_directories(.)
 
@@ -37,8 +37,13 @@ add_executable(http_examples http_examples.cpp)
 target_link_libraries(http_examples ${Boost_LIBRARIES})
 target_link_libraries(http_examples ${CMAKE_THREAD_LIBS_INIT})
 
+add_executable(http_opencv http_opencv.cpp)
+target_link_libraries(http_opencv ${Boost_LIBRARIES})
+target_link_libraries(http_opencv ${CMAKE_THREAD_LIBS_INIT})
+
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(http_examples ws2_32 wsock32)
+    target_link_libraries(http_opencv ws2_32 wsock32)
     target_link_libraries(https_examples ws2_32 wsock32)
 endif()
 
